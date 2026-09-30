@@ -1,6 +1,8 @@
 # Mocktail Explorer
 
-Projeto individual desenvolvido para a disciplina de Programação Web Fullstack.
+Projeto em dupla desenvolvido para a disciplina de Programação Web Fullstack.
+
+Alunos: Felipe Yamada e João Pedro 
 
 ## Sobre o projeto
 
@@ -98,18 +100,3 @@ Durante o desenvolvimento foi utilizada uma ferramenta de inteligência artifici
 
 O código foi revisado e adaptado para os objetivos da atividade.
 
-## GitHub
-
-O projeto deve ser mantido em um repositório público. Os commits devem ser realizados durante o desenvolvimento para registrar a evolução real do trabalho.
-
-Exemplos de etapas que podem gerar commits:
-
-- criação inicial do projeto React;
-- integração com a API;
-- criação dos cards;
-- implementação da pesquisa;
-- utilização do useMemo;
-- criação do modal;
-- implementação dos favoritos;
-- ajustes de estilo e responsividade;
-- documentação.
