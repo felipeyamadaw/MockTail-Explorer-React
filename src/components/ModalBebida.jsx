@@ -1,14 +1,29 @@
+import { useEffect, useState } from 'react'
 import {
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Skeleton,
   Typography,
 } from '@mui/material'
 
 function ModalBebida({ aberto, fechar, bebida }) {
+  const [carregandoImagem, setCarregandoImagem] = useState(true)
+  const [falhaImagem, setFalhaImagem] = useState(false)
+
+  // Cada bebida tem uma imagem própria, então o estado reinicia ao trocar de receita
+  useEffect(() => {
+    setCarregandoImagem(true)
+    setFalhaImagem(false)
+  }, [bebida])
+
   if (!bebida) return null
+
+  // A API nem sempre preenche o campo, então o modal continua funcionando sem imagem
+  const temImagem = Boolean(bebida.strDrinkThumb)
+  const mostrarAviso = !temImagem || falhaImagem
 
   const ingredientes = []
 
@@ -27,11 +42,30 @@ function ModalBebida({ aberto, fechar, bebida }) {
       <DialogTitle>{bebida.strDrink}</DialogTitle>
 
       <DialogContent>
-        <img
-          className="imagem-modal"
-          src={bebida.strDrinkThumb}
-          alt={bebida.strDrink}
-        />
+        <div className="area-imagem">
+          {carregandoImagem && !mostrarAviso && (
+            <Skeleton
+              variant="rectangular"
+              animation="wave"
+              className="esqueleto-imagem"
+            />
+          )}
+
+          {mostrarAviso ? (
+            <Typography variant="body2" color="text.secondary">
+              Imagem indisponível para esta bebida.
+            </Typography>
+          ) : (
+            <img
+              className="imagem-modal"
+              src={bebida.strDrinkThumb}
+              alt={bebida.strDrink}
+              style={{ opacity: carregandoImagem ? 0 : 1 }}
+              onLoad={() => setCarregandoImagem(false)}
+              onError={() => setFalhaImagem(true)}
+            />
+          )}
+        </div>
 
         <Typography variant="h6" sx={{ mt: 2 }}>
           Ingredientes

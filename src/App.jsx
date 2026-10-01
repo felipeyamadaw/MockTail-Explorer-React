@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
+  Button,
   CircularProgress,
   Container,
   MenuItem,
+  Pagination,
+  Stack,
   TextField,
   Typography,
 } from '@mui/material'
@@ -12,15 +15,23 @@ import ModalBebida from './components/ModalBebida'
 
 const API = 'https://www.thecocktaildb.com/api/json/v1/1'
 
+// 9 = 3 colunas em telas grandes, então as linhas do grid ficam cheias
+const POR_PAGINA = 9
+
 function App() {
   const [bebidas, setBebidas] = useState([])
   const [busca, setBusca] = useState('')
   const [ordem, setOrdem] = useState('az')
   const [favoritos, setFavoritos] = useState([])
+  const [somenteFavoritos, setSomenteFavoritos] = useState(false)
+  const [pagina, setPagina] = useState(1)
   const [bebidaSelecionada, setBebidaSelecionada] = useState(null)
   const [modalAberto, setModalAberto] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(false)
+
+  // serve para voltar ao topo da lista quando o usuário troca de página
+  const inicioLista = useRef(null)
 
   // Executa uma vez quando a aplicação é aberta
   useEffect(() => {
@@ -72,11 +83,37 @@ function App() {
     localStorage.setItem('favoritos', JSON.stringify(novaLista))
   }
 
+  // Cada filtro volta para a primeira página, senão o usuário pode cair numa página vazia
+  function pesquisar(valor) {
+    setBusca(valor)
+    setPagina(1)
+  }
+
+  function ordenar(valor) {
+    setOrdem(valor)
+    setPagina(1)
+  }
+
+  function alternarFavoritos() {
+    setSomenteFavoritos((valor) => !valor)
+    setPagina(1)
+  }
+
+  function trocarPagina(novaPagina) {
+    setPagina(novaPagina)
+    inicioLista.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   // useMemo evita refazer o filtro se os valores abaixo não mudarem
   const bebidasFiltradas = useMemo(() => {
-    const resultado = bebidas.filter((bebida) =>
+    let resultado = bebidas.filter((bebida) =>
       bebida.strDrink.toLowerCase().includes(busca.toLowerCase()),
     )
+
+    // o botão de favoritos corta a lista antes mesmo de ordenar
+    if (somenteFavoritos) {
+      resultado = resultado.filter((bebida) => favoritos.includes(bebida.idDrink))
+    }
 
     return [...resultado].sort((a, b) => {
       if (ordem === 'za') {
@@ -85,7 +122,21 @@ function App() {
 
       return a.strDrink.localeCompare(b.strDrink)
     })
-  }, [bebidas, busca, ordem])
+  }, [bebidas, busca, ordem, somenteFavoritos, favoritos])
+
+  const totalPaginas = Math.max(1, Math.ceil(bebidasFiltradas.length / POR_PAGINA))
+
+  // a lista pode encolher ao desfavoritar algo, e aí a página atual deixa de existir
+  const paginaAtual = Math.min(pagina, totalPaginas)
+
+  const bebidasVisiveis = useMemo(
+    () =>
+      bebidasFiltradas.slice(
+        (paginaAtual - 1) * POR_PAGINA,
+        paginaAtual * POR_PAGINA,
+      ),
+    [bebidasFiltradas, paginaAtual],
+  )
 
   return (
     <>
@@ -99,7 +150,8 @@ function App() {
           <TextField
             label="Pesquisar bebida"
             value={busca}
-            onChange={(event) => setBusca(event.target.value)}
+            onChange={(event) => pesquisar(event.target.value)}
+            className="campo-busca"
             fullWidth
           />
 
@@ -107,16 +159,30 @@ function App() {
             select
             label="Ordenar"
             value={ordem}
-            onChange={(event) => setOrdem(event.target.value)}
+            onChange={(event) => ordenar(event.target.value)}
             className="ordenar"
           >
             <MenuItem value="az">A - Z</MenuItem>
             <MenuItem value="za">Z - A</MenuItem>
           </TextField>
+
+          <Button
+            variant={somenteFavoritos ? 'contained' : 'outlined'}
+            color="secondary"
+            onClick={alternarFavoritos}
+            className="botao-favoritos"
+          >
+            {somenteFavoritos ? '★ Só favoritos' : '☆ Ver favoritos'}
+            {favoritos.length > 0 && ` (${favoritos.length})`}
+          </Button>
         </div>
 
+        <div ref={inicioLista} />
+
         <Typography sx={{ mb: 2 }}>
-          {bebidasFiltradas.length} bebidas encontradas
+          {somenteFavoritos
+            ? `${bebidasFiltradas.length} de ${favoritos.length} favoritos`
+            : `${bebidasFiltradas.length} bebidas encontradas`}
         </Typography>
 
         {erro && (
@@ -130,17 +196,40 @@ function App() {
             <CircularProgress />
           </div>
         ) : (
-          <div className="lista">
-            {bebidasFiltradas.map((bebida) => (
-              <CardBebida
-                key={bebida.idDrink}
-                bebida={bebida}
-                favorita={favoritos.includes(bebida.idDrink)}
-                favoritar={favoritar}
-                verDetalhes={verDetalhes}
-              />
-            ))}
-          </div>
+          <>
+            {bebidasVisiveis.length === 0 ? (
+              <Alert severity="info">
+                {somenteFavoritos
+                  ? 'Você ainda não favoritou nenhuma bebida. Use o botão ☆ Favoritar em um card.'
+                  : 'Nenhuma bebida encontrada com esse nome.'}
+              </Alert>
+            ) : (
+              <div className="lista">
+                {bebidasVisiveis.map((bebida) => (
+                  <CardBebida
+                    key={bebida.idDrink}
+                    bebida={bebida}
+                    favorita={favoritos.includes(bebida.idDrink)}
+                    favoritar={favoritar}
+                    verDetalhes={verDetalhes}
+                  />
+                ))}
+              </div>
+            )}
+
+            {totalPaginas > 1 && (
+              <Stack alignItems="center" className="paginacao">
+                <Pagination
+                  count={totalPaginas}
+                  page={paginaAtual}
+                  onChange={(event, valor) => trocarPagina(valor)}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                />
+              </Stack>
+            )}
+          </>
         )}
       </Container>
 
